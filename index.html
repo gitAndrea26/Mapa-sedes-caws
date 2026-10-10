@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sedes de la Escuela</title>
+
+    <!-- Leaflet -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6f8;
+            color: #222;
+        }
+
+        .contenedor {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .subtitulo {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .filtro {
+            margin-bottom: 20px;
+        }
+
+        .filtro label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        select {
+            width: 280px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: white;
+            font-size: 16px;
+        }
+
+        .contenido {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        #mapa {
+            height: 600px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .sedes {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .sede {
+            background: white;
+            padding: 18px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .sede h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+
+        .dato {
+            margin: 7px 0;
+            color: #555;
+        }
+
+        @media (max-width: 800px) {
+            .contenido {
+                grid-template-columns: 1fr;
+            }
+
+            #mapa {
+                height: 450px;
+            }
+
+            select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <h1>Nuestras sedes</h1>
+
+    <p class="subtitulo">
+        Encontrá la sede más cercana seleccionando una zona.
+    </p>
+
+    <div class="filtro">
+        <label for="zona">Provincia / zona</label>
+
+        <select id="zona">
+            <option value="Buenos Aires">Buenos Aires</option>
+            <option value="Capital">Capital</option>
+        </select>
+    </div>
+
+    <div class="contenido">
+
+        <!-- MAPA -->
+        <div id="mapa"></div>
+
+        <!-- LISTA DE SEDES -->
+        <div class="sedes" id="listaSedes"></div>
+
+    </div>
+
+</div>
+
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+    // ==========================================
+    // DATOS DE LAS SEDES
+    // ==========================================
+
+    const sedes = [
+
+        // ------------------------------
+        // BUENOS AIRES
+        // ------------------------------
+
+        {
+            nombre: "Escuela Buenos Aires 1",
+            zona: "Buenos Aires",
+            direccion: "Calle Ficticia 123, La Plata",
+            telefono: "011-1234-5678",
+            lat: -34.9214,
+            lon: -57.9544
+        },
+
+        {
+            nombre: "Escuela Buenos Aires 2",
+            zona: "Buenos Aires",
+            direccion: "Av. Ficticia 456, Mar del Plata",
+            telefono: "0223-123-4567",
+            lat: -38.0055,
+            lon: -57.5426
+        },
+
+        {
+            nombre: "Escuela Buenos Aires 3",
+            zona: "Buenos Aires",
+            direccion: "Calle Ejemplo 789, San Isidro",
+            telefono: "011-9876-5432",
+            lat: -34.4721,
+            lon: -58.5270
+        },
+
+
+        // ------------------------------
+        // CAPITAL
+        // ------------------------------
+
+        {
+            nombre: "Escuela Capital 1",
+            zona: "Capital",
+            direccion: "Av. Santa Fe 1234, Palermo",
+            telefono: "011-1111-2222",
+            lat: -34.5889,
+            lon: -58.4300
+        },
+
+        {
+            nombre: "Escuela Capital 2",
+            zona: "Capital",
+            direccion: "Av. Corrientes 2000, Almagro",
+            telefono: "011-3333-4444",
+            lat: -34.6045,
+            lon: -58.4140
+        }
+
+    ];
+
+
+    // ==========================================
+    // CREAR MAPA
+    // ==========================================
+
+    const mapa = L.map('mapa').setView(
+        [-34.6037, -58.3816],
+        10
+    );
+
+
+    // Mapa de OpenStreetMap
+
+    L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+            attribution: '&copy; OpenStreetMap contributors'
+        }
+    ).addTo(mapa);
+
+
+    // Grupo de marcadores
+
+    let grupoMarcadores = L.layerGroup().addTo(mapa);
+
+
+    // ==========================================
+    // MOSTRAR SEDES
+    // ==========================================
+
+    function mostrarSedes(zonaSeleccionada) {
+
+        // Limpiar marcadores anteriores
+        grupoMarcadores.clearLayers();
+
+        // Limpiar lista
+        const lista = document.getElementById("listaSedes");
+        lista.innerHTML = "";
+
+
+        // Filtrar sedes
+
+        const sedesFiltradas = sedes.filter(
+            sede => sede.zona === zonaSeleccionada
+        );
+
+
+        // Coordenadas para ajustar el mapa
+
+        const coordenadas = [];
+
+
+        // Crear cada sede
+
+        sedesFiltradas.forEach(sede => {
+
+            // ------------------------------
+            // MARCADOR EN EL MAPA
+            // ------------------------------
+
+            const marcador = L.marker([
+                sede.lat,
+                sede.lon
+            ]);
+
+
+            // Popup del marcador
+
+            marcador.bindPopup(`
+                <strong>${sede.nombre}</strong><br>
+                ${sede.direccion}<br>
+                Tel: ${sede.telefono}
+            `);
+
+
+            marcador.addTo(grupoMarcadores);
+
+
+            coordenadas.push([
+                sede.lat,
+                sede.lon
+            ]);
+
+
+            // ------------------------------
+            // TARJETA DE LA SEDE
+            // ------------------------------
+
+            const tarjeta = document.createElement("div");
+
+            tarjeta.className = "sede";
+
+            tarjeta.innerHTML = `
+                <h3>${sede.nombre}</h3>
+
+                <div class="dato">
+                    📍 ${sede.direccion}
+                </div>
+
+                <div class="dato">
+                    ☎ ${sede.telefono}
+                </div>
+            `;
+
+            lista.appendChild(tarjeta);
+
+        });
+
+
+        // ==================================
+        // AJUSTAR MAPA A LAS SEDES
+        // ==================================
+
+        if (coordenadas.length > 0) {
+
+            const limites = L.latLngBounds(coordenadas);
+
+            mapa.fitBounds(limites, {
+                padding: [40, 40]
+            });
+
+        }
+
+    }
+
+
+    // ==========================================
+    // CAMBIO DE ZONA
+    // ==========================================
+
+    document
+        .getElementById("zona")
+        .addEventListener("change", function() {
+
+            mostrarSedes(this.value);
+
+        });
+
+
+    // ==========================================
+    // CARGAR ZONA INICIAL
+    // ==========================================
+
+    mostrarSedes("Buenos Aires");
+
+</script>
+
+</body>
+</html>
